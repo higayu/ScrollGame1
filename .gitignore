@@ -9,10 +9,15 @@
 /[Bb]uilds/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
-
+*.asset
 # MemoryCaptures can get excessive in size.
 # They also could contain extremely sensitive data
 /[Mm]emoryCaptures/
+
+/[Aa]ssets/Resources/
+/[Aa]ssets/Animation/
+/[Aa]ssets/Scenes/
+/[Aa]ssets/Prefab/
 
 # Recordings can get excessive in size
 /[Rr]ecordings/
