@@ -1,64 +1,114 @@
 using UnityEngine;
 using Unity.Netcode;
+using static UnityEngine.RuleTile.TilingRuleOutput;
+using System.Globalization;
 using Unity.Netcode.Components;
 
 [RequireComponent(typeof(NetworkObject))]
 [RequireComponent(typeof(NetworkTransform))]
 public class NetworkPlayerController : NetworkBehaviour
 {
-    public float moveSpeed = 5f; // プレイヤーの移動速度
-    private Vector3 targetPosition; // サーバーから同期された目標位置
+    public const int speed = 5; // 通常の移動速度
+    public float jumpForce = 5f; // ジャンプ力
+
+    private Animator anim = null;
+    private Rigidbody2D rb = null;
+    private bool isGround = false; // 地面にいるかどうか
+
+    private bool isFacingRight = true;
 
     private void Start()
     {
-        if (!IsOwner)
+        anim = GetComponent<Animator>();
+        rb = GetComponent<Rigidbody2D>();
+
+        // Nullチェック
+        if (anim == null)
         {
-            // サーバー同期位置を初期化
-            targetPosition = transform.position;
+            Debug.LogError("Animatorコンポーネントが見つかりません。");
+        }
+
+        if (rb == null)
+        {
+            Debug.LogError("Rigidbody2Dコンポーネントが見つかりません。");
         }
     }
 
     private void Update()
     {
+        // 自分のプレイヤーのみ入力を処理
         if (IsOwner)
         {
             HandleMovement();
-        } else
-        {
-            SmoothMove();
         }
     }
 
     private void HandleMovement()
     {
-        float moveX = Input.GetAxis("Horizontal");
-        float moveZ = Input.GetAxis("Vertical");
+        float horizontalKey = Input.GetAxis("Horizontal");
+        float xSpeed = 0.0f;
 
-        Vector3 move = new Vector3(moveX, 0, moveZ) * moveSpeed * Time.deltaTime;
+        if (horizontalKey > 0)
+        {
+            isFacingRight = true;
+            anim.SetInteger("Speed", 1);
+            xSpeed = speed;
+        } else if (horizontalKey < 0)
+        {
+            isFacingRight = false;
+            anim.SetInteger("Speed", 1);
+            xSpeed = -speed;
+        } else
+        {
+            anim.SetInteger("Speed", 0);
+            xSpeed = 0.0f;
+        }
+
+        // ローカルでジャンプ処理
+        if (Input.GetKeyDown(KeyCode.Space) && isGround)
+        {
+            anim.SetInteger("Jump", 1);
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        }
 
         // サーバーに移動リクエストを送信
-        RequestMoveServerRpc(move);
+        RequestMoveServerRpc(xSpeed);
     }
 
     [ServerRpc]
-    private void RequestMoveServerRpc(Vector3 move)
+    private void RequestMoveServerRpc(float xSpeed)
     {
-        transform.position += move;
+        // サーバーで位置を更新
+        rb.velocity = new Vector2(xSpeed, rb.velocity.y);
 
-        // クライアント全体に位置を反映
-        UpdatePositionClientRpc(transform.position);
+        // クライアント全体にアニメーションと向きを同期
+        UpdateAnimationAndFacingClientRpc(xSpeed != 0, isFacingRight);
     }
 
     [ClientRpc]
-    private void UpdatePositionClientRpc(Vector3 position)
+    private void UpdateAnimationAndFacingClientRpc(bool isMoving, bool facingRight)
     {
-        // サーバーから送られてきた位置を目標位置として設定
-        targetPosition = position;
+        if (!IsOwner)
+        {
+            anim.SetInteger("Speed", isMoving ? 1 : 0);
+            transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
+        }
     }
 
-    private void SmoothMove()
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        // 現在位置をサーバーから送られてきた目標位置に補間
-        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * 10f);
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGround = true;
+            anim.SetInteger("Jump", 0);
+        }
+    }
+
+    private void OnCollisionExit2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            isGround = false;
+        }
     }
 }
