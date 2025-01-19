@@ -7,46 +7,58 @@ using Unity.Netcode.Components;
 public class NetworkPlayerController : NetworkBehaviour
 {
     public float moveSpeed = 5f; // プレイヤーの移動速度
+    private Vector3 targetPosition; // サーバーから同期された目標位置
+
+    private void Start()
+    {
+        if (!IsOwner)
+        {
+            // サーバー同期位置を初期化
+            targetPosition = transform.position;
+        }
+    }
 
     private void Update()
     {
-        // 自分のプレイヤーのみ制御可能
         if (IsOwner)
         {
             HandleMovement();
+        } else
+        {
+            SmoothMove();
         }
     }
 
     private void HandleMovement()
     {
-        // キーボード入力で移動
         float moveX = Input.GetAxis("Horizontal");
         float moveZ = Input.GetAxis("Vertical");
 
         Vector3 move = new Vector3(moveX, 0, moveZ) * moveSpeed * Time.deltaTime;
-        transform.position += move;
 
-        // サーバーに位置を同期
-        UpdatePositionServerRpc(transform.position);
+        // サーバーに移動リクエストを送信
+        RequestMoveServerRpc(move);
     }
 
     [ServerRpc]
-    private void UpdatePositionServerRpc(Vector3 position)
+    private void RequestMoveServerRpc(Vector3 move)
     {
-        // サーバーで位置を更新
-        transform.position = position;
+        transform.position += move;
 
         // クライアント全体に位置を反映
-        UpdatePositionClientRpc(position);
+        UpdatePositionClientRpc(transform.position);
     }
 
     [ClientRpc]
     private void UpdatePositionClientRpc(Vector3 position)
     {
-        // 他のクライアントにのみ位置を反映
-        if (!IsOwner)
-        {
-            transform.position = position;
-        }
+        // サーバーから送られてきた位置を目標位置として設定
+        targetPosition = position;
+    }
+
+    private void SmoothMove()
+    {
+        // 現在位置をサーバーから送られてきた目標位置に補間
+        transform.position = Vector3.Lerp(transform.position, targetPosition, Time.deltaTime * 10f);
     }
 }
