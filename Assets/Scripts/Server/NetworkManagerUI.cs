@@ -76,7 +76,7 @@ public class NetworkManagerUI : MonoBehaviour
             Debug.Log(connectionStatus);
 
             // ホスト用プレイヤーをスポーン
-            SpawnPlayer();
+           // SpawnPlayer();
         } else
         {
             UpdateConnectionStatus("Failed to start host.");
@@ -166,17 +166,17 @@ public class NetworkManagerUI : MonoBehaviour
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
     }
 
-    private void SpawnPlayer()
-    {
-        if (playerPrefab == null)
-        {
-            Debug.LogError("Player prefab is not assigned!");
-            UpdateConnectionStatus("Player prefab is not assigned!");
-            return;
-        }
+    //private void SpawnPlayer()
+    //{
+    //    if (playerPrefab == null)
+    //    {
+    //        Debug.LogError("Player prefab is not assigned!");
+    //        UpdateConnectionStatus("Player prefab is not assigned!");
+    //        return;
+    //    }
 
-        // ネットワークプレイヤーをスポーン
-        GameObject player = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
-        player.GetComponent<NetworkObject>().Spawn();
-    }
+    //    // ネットワークプレイヤーをスポーン
+    //    GameObject player = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
+    //    player.GetComponent<NetworkObject>().Spawn();
+    //}
 }
