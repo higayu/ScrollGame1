@@ -1,7 +1,5 @@
 using UnityEngine;
 using Unity.Netcode;
-using static UnityEngine.RuleTile.TilingRuleOutput;
-using System.Globalization;
 using Unity.Netcode.Components;
 
 [RequireComponent(typeof(NetworkObject))]
@@ -64,25 +62,25 @@ public class NetworkPlayerController : NetworkBehaviour
             xSpeed = 0.0f;
         }
 
+        // サーバーに移動リクエストを送信
+        RequestMoveServerRpc(xSpeed, isFacingRight);
+
         // ローカルでジャンプ処理
         if (Input.GetKeyDown(KeyCode.Space) && isGround)
         {
             anim.SetInteger("Jump", 1);
             rb.velocity = new Vector2(rb.velocity.x, jumpForce);
         }
-
-        // サーバーに移動リクエストを送信
-        RequestMoveServerRpc(xSpeed);
     }
 
     [ServerRpc]
-    private void RequestMoveServerRpc(float xSpeed)
+    private void RequestMoveServerRpc(float xSpeed, bool facingRight)
     {
         // サーバーで位置を更新
         rb.velocity = new Vector2(xSpeed, rb.velocity.y);
 
         // クライアント全体にアニメーションと向きを同期
-        UpdateAnimationAndFacingClientRpc(xSpeed != 0, isFacingRight);
+        UpdateAnimationAndFacingClientRpc(xSpeed != 0, facingRight);
     }
 
     [ClientRpc]
@@ -91,6 +89,12 @@ public class NetworkPlayerController : NetworkBehaviour
         if (!IsOwner)
         {
             anim.SetInteger("Speed", isMoving ? 1 : 0);
+
+            // キャラクターの向きを反転
+            transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
+        } else
+        {
+            // ローカルのキャラも向きを更新
             transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
         }
     }
