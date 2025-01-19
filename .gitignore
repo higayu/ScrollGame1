@@ -20,6 +20,10 @@
 /[Aa]ssets/Prefab/
 /[Aa]ssets/Pixel Adventure 1/
 /[Aa]ssets/img/
+/Packages/
+/[Aa]ssets/TextMesh Pro/
+
+
 
 # Recordings can get excessive in size
 /[Rr]ecordings/

@@ -67,7 +67,7 @@ public class Anime_Player : MonoBehaviour
         #region  ----------【 オブジェクトの有無 】---------------------------------------------
         if (anim == null || rb == null || audioSource == null || audioSource == null)
         {
-            Debug.Log("音源なし");
+            //Debug.Log("音源なし");
             //return; // 必要なコンポーネントが見つからない場合は処理を中断
         }
         #endregion  ----------【  】---------------------------------------------
