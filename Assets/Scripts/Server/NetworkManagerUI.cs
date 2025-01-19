@@ -1,101 +1,182 @@
 using System.Collections;
+using TMPro;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 
 public class NetworkManagerUI : MonoBehaviour
 {
+    public TMP_InputField hostIPInputField; // IPアドレスを入力するフィールド
+    public TextMeshProUGUI connectionStatusText; // 接続状況を表示するフィールド
+
+    public UnityEngine.UI.Button hostButton; // Hostボタン
+    public UnityEngine.UI.Button clientButton; // Clientボタン
+    public UnityEngine.UI.Button serverButton; // Serverボタン
+
     private string connectionStatus = ""; // 接続状況のメッセージ
-    public string hostIp = ""; // 初期値をループバックアドレスに設定
     public int port = 7777; // 使用するポート番号
 
-    private void OnGUI()
+    public GameObject playerPrefab; // プレイヤープレハブ
+
+    private void Start()
     {
-        // エリアを指定
-        GUILayout.BeginArea(new Rect(10, 10, 300, 300)); // 幅300、高さ300のエリアを作成
+        // 初期メッセージを設定
+        UpdateConnectionStatus("Waiting for input...");
 
-        // ボタンが表示される条件
-        if (!NetworkManager.Singleton.IsClient && !NetworkManager.Singleton.IsServer)
-        {
-            // ボタンの幅と高さを指定
-            if (GUILayout.Button("Start Host", GUILayout.Width(200), GUILayout.Height(50)))
-            {
-                StartHost();
-            }
-            if (GUILayout.Button("Start Client", GUILayout.Width(200), GUILayout.Height(50)))
-            {
-                StartCoroutine(DelayedStartClient());
-            }
+        // ボタンイベントの登録
+        if (hostButton != null)
+            hostButton.onClick.AddListener(StartHost);
 
-            if (GUILayout.Button("Start Server", GUILayout.Width(200), GUILayout.Height(50)))
-            {
-                StartServer();
-            }
-        }
+        if (clientButton != null)
+            clientButton.onClick.AddListener(() => StartCoroutine(DelayedStartClient()));
 
-        // 接続状況を表示
-        GUILayout.Label($"Status: {connectionStatus}", GUILayout.Width(250), GUILayout.Height(50));
-
-        // 接続先のIPアドレスを入力できるフィールドを追加
-        GUILayout.Label("Host IP Address:", GUILayout.Width(250), GUILayout.Height(30));
-        hostIp = GUILayout.TextField(hostIp, GUILayout.Width(200));
-
-        GUILayout.EndArea();
+        if (serverButton != null)
+            serverButton.onClick.AddListener(StartServer);
     }
 
-    private void StartHost()
+    private void UpdateConnectionStatus(string status)
     {
+        connectionStatus = status;
+        if (connectionStatusText != null)
+        {
+            connectionStatusText.text = connectionStatus;
+        }
+    }
+
+    public void StartHost()
+    {
+        if (hostIPInputField == null)
+        {
+            Debug.LogError("Host IP Input Field is not assigned!");
+            UpdateConnectionStatus("Host IP Input Field is missing!");
+            return;
+        }
+
+        string hostIp = hostIPInputField.text; // InputFieldからIPを取得
+        if (string.IsNullOrEmpty(hostIp))
+        {
+            Debug.LogError("Host IP is empty!");
+            UpdateConnectionStatus("Please enter a valid Host IP.");
+            return;
+        }
+
         var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        unityTransport.SetConnectionData(hostIp, (ushort)port); // ホストもループバックアドレスを使用
+        if (unityTransport == null)
+        {
+            Debug.LogError("UnityTransport component is missing from NetworkManager!");
+            UpdateConnectionStatus("UnityTransport component is missing!");
+            return;
+        }
+
+        unityTransport.SetConnectionData(hostIp, (ushort)port);
+
         if (NetworkManager.Singleton.StartHost())
         {
-            connectionStatus = $"Host started at hostIp:{port}";
+            UpdateConnectionStatus($"Host started at {hostIp}:{port}");
             Debug.Log(connectionStatus);
+
+            // ホスト用プレイヤーをスポーン
+            SpawnPlayer();
         } else
         {
-            connectionStatus = "Failed to start host.";
+            UpdateConnectionStatus("Failed to start host.");
             Debug.LogError(connectionStatus);
         }
     }
 
-    private void StartServer()
+    public void StartServer()
     {
+        if (hostIPInputField == null)
+        {
+            Debug.LogError("Host IP Input Field is not assigned!");
+            UpdateConnectionStatus("Host IP Input Field is missing!");
+            return;
+        }
+
+        string hostIp = hostIPInputField.text; // InputFieldからIPを取得
+        if (string.IsNullOrEmpty(hostIp))
+        {
+            Debug.LogError("Host IP is empty!");
+            UpdateConnectionStatus("Please enter a valid Host IP.");
+            return;
+        }
+
         var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        unityTransport.SetConnectionData(hostIp, (ushort)port); // サーバーもループバックアドレスを使用
+        if (unityTransport == null)
+        {
+            Debug.LogError("UnityTransport component is missing from NetworkManager!");
+            UpdateConnectionStatus("UnityTransport component is missing!");
+            return;
+        }
+
+        unityTransport.SetConnectionData(hostIp, (ushort)port);
+
         if (NetworkManager.Singleton.StartServer())
         {
-            connectionStatus = $"Server started at hostIp:{port}";
+            UpdateConnectionStatus($"Server started at {hostIp}:{port}");
             Debug.Log(connectionStatus);
         } else
         {
-            connectionStatus = "Failed to start server.";
+            UpdateConnectionStatus("Failed to start server.");
             Debug.LogError(connectionStatus);
         }
     }
 
-    IEnumerator DelayedStartClient()
+    public IEnumerator DelayedStartClient()
     {
-        yield return new WaitForSeconds(1f); // 1秒待機
+        if (hostIPInputField == null)
+        {
+            Debug.LogError("Host IP Input Field is not assigned!");
+            UpdateConnectionStatus("Host IP Input Field is missing!");
+            yield break;
+        }
+
+        string hostIp = hostIPInputField.text; // InputFieldからIPを取得
+        if (string.IsNullOrEmpty(hostIp))
+        {
+            Debug.LogError("Host IP is empty!");
+            UpdateConnectionStatus("Please enter a valid Host IP.");
+            yield break;
+        }
 
         var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        unityTransport.SetConnectionData(hostIp, (ushort)port); // 入力されたIPアドレスを使用
+        if (unityTransport == null)
+        {
+            Debug.LogError("UnityTransport component is missing from NetworkManager!");
+            UpdateConnectionStatus("UnityTransport component is missing!");
+            yield break;
+        }
 
-        // 接続状況を初期化
-        connectionStatus = $"Connecting to Host at {hostIp}:{port}...";
+        unityTransport.SetConnectionData(hostIp, (ushort)port);
 
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected; // エラー時のコールバック設定
+        UpdateConnectionStatus($"Connecting to Host at {hostIp}:{port}...");
+        Debug.Log($"Connecting to Host at {hostIp}:{port}");
+
+        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
 
         NetworkManager.Singleton.StartClient();
-        Debug.Log($"Connecting to Host at {hostIp}:{port}");
+
+        yield return new WaitForSeconds(1f); // 1秒待機
     }
 
     private void OnClientDisconnected(ulong clientId)
     {
-        // クライアント切断時の処理（エラー情報を表示）
-        connectionStatus = "Connection failed. Please check the host address and try again.";
+        UpdateConnectionStatus("Connection failed. Please check the host address and try again.");
         Debug.LogError("Client disconnected. Connection failed.");
-
-        // コールバックを解除（不要な呼び出しを防ぐため）
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+    }
+
+    private void SpawnPlayer()
+    {
+        if (playerPrefab == null)
+        {
+            Debug.LogError("Player prefab is not assigned!");
+            UpdateConnectionStatus("Player prefab is not assigned!");
+            return;
+        }
+
+        // ネットワークプレイヤーをスポーン
+        GameObject player = Instantiate(playerPrefab, Vector3.zero, Quaternion.identity);
+        player.GetComponent<NetworkObject>().Spawn();
     }
 }
