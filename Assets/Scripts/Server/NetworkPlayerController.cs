@@ -65,11 +65,10 @@ public class NetworkPlayerController : NetworkBehaviour
         // サーバーに移動リクエストを送信
         RequestMoveServerRpc(xSpeed, isFacingRight);
 
-        // ローカルでジャンプ処理
+        // ジャンプ処理
         if (Input.GetKeyDown(KeyCode.Space) && isGround)
         {
-            anim.SetInteger("Jump", 1);
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            RequestJumpServerRpc();
         }
     }
 
@@ -81,6 +80,16 @@ public class NetworkPlayerController : NetworkBehaviour
 
         // クライアント全体にアニメーションと向きを同期
         UpdateAnimationAndFacingClientRpc(xSpeed != 0, facingRight);
+    }
+
+    [ServerRpc]
+    private void RequestJumpServerRpc()
+    {
+        if (isGround)
+        {
+            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            UpdateJumpAnimationClientRpc();
+        }
     }
 
     [ClientRpc]
@@ -99,12 +108,17 @@ public class NetworkPlayerController : NetworkBehaviour
         }
     }
 
+    [ClientRpc]
+    private void UpdateJumpAnimationClientRpc()
+    {
+        anim.SetInteger("Jump", 1);
+    }
+
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
-            isGround = true;
-            anim.SetInteger("Jump", 0);
+            UpdateGroundStateServerRpc(true);
         }
     }
 
@@ -112,7 +126,21 @@ public class NetworkPlayerController : NetworkBehaviour
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
-            isGround = false;
+            UpdateGroundStateServerRpc(false);
         }
+    }
+
+    [ServerRpc]
+    private void UpdateGroundStateServerRpc(bool isOnGround)
+    {
+        isGround = isOnGround;
+        UpdateGroundStateClientRpc(isOnGround);
+    }
+
+    [ClientRpc]
+    private void UpdateGroundStateClientRpc(bool isOnGround)
+    {
+        isGround = isOnGround;
+        anim.SetInteger("Jump", isOnGround ? 0 : 1);
     }
 }

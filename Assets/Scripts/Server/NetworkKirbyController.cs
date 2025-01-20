@@ -1,0 +1,231 @@
+using System.Collections;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using Unity.Netcode;
+
+public class NetworkKirbyController : NetworkBehaviour
+{
+    public const int speed = 5;
+    public float jumpForce = 5f;
+    public const float hoverGravityScale = 0.5f;
+    public const float normalGravityScale = 1f;
+
+    private Animator anim = null;
+    private Rigidbody2D rb = null;
+    private bool isGround = false;
+    private bool isHovering = false;
+    private bool isSucking = false;
+    private bool isHoubaru = false;
+    private bool isFacingRight = true;
+
+    public Vector2 boxSize = new Vector2(2f, 1f);
+    public float suikomiForce = 0.1f;
+    public float closeDistance = 1f;
+
+    public AudioSource audioSource;
+    public AudioClip suikomiSound;
+    public AudioClip hobaringSound;
+    public AudioClip starSound;
+
+    public float power = 100f;
+    public GameObject cannonBall;
+    public Transform shootPoint;
+
+    private void Start()
+    {
+        anim = GetComponent<Animator>();
+        rb = GetComponent<Rigidbody2D>();
+
+        if (anim == null || rb == null)
+        {
+            Debug.LogError("必要なコンポーネントが見つかりません。");
+        }
+
+        audioSource = GetComponent<AudioSource>();
+        if (audioSource == null)
+        {
+            Debug.LogError("AudioSourceコンポーネントが見つかりません。");
+        }
+    }
+
+    private void Update()
+    {
+        if (IsOwner)
+        {
+            HandleInput();
+        }
+    }
+
+    private void HandleInput()
+    {
+        float horizontalKey = Input.GetAxis("Horizontal");
+        float xSpeed = 0.0f;
+
+        if (horizontalKey > 0)
+        {
+            isFacingRight = true;
+            xSpeed = speed;
+        } else if (horizontalKey < 0)
+        {
+            isFacingRight = false;
+            xSpeed = -speed;
+        }
+
+        RequestMoveServerRpc(xSpeed, isFacingRight);
+
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            if (isGround)
+            {
+                RequestJumpServerRpc(false);
+            } else if (!isHoubaru && !isHovering)
+            {
+                RequestJumpServerRpc(true);
+            }
+        }
+
+        if (Input.GetKey(KeyCode.S) && !isHoubaru)
+        {
+            RequestSuctionServerRpc(true);
+        } else if (Input.GetKeyUp(KeyCode.S))
+        {
+            RequestSuctionServerRpc(false);
+        }
+
+        if (Input.GetKeyDown(KeyCode.V) && isHoubaru)
+        {
+            RequestShootServerRpc(isFacingRight);
+        }
+    }
+
+    [ServerRpc]
+    private void RequestMoveServerRpc(float xSpeed, bool facingRight)
+    {
+        rb.velocity = new Vector2(xSpeed, rb.velocity.y);
+        UpdateAnimationAndFacingClientRpc(xSpeed != 0, facingRight);
+    }
+
+    [ServerRpc]
+    private void RequestJumpServerRpc(bool isHovering)
+    {
+        if (isHovering)
+        {
+            rb.gravityScale = hoverGravityScale;
+            audioSource.PlayOneShot(hobaringSound);
+        } else
+        {
+            rb.gravityScale = normalGravityScale;
+        }
+
+        rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        UpdateJumpAnimationClientRpc(isHovering);
+    }
+
+    [ServerRpc]
+    private void RequestSuctionServerRpc(bool isSuction)
+    {
+        if (isSuction)
+        {
+            SuikomiStarBlock();
+            UpdateSuctionAnimationClientRpc(true);
+        } else
+        {
+            UpdateSuctionAnimationClientRpc(false);
+        }
+    }
+
+    [ServerRpc]
+    private void RequestShootServerRpc(bool facingRight)
+    {
+        Shoot(facingRight);
+    }
+
+    [ClientRpc]
+    private void UpdateAnimationAndFacingClientRpc(bool isMoving, bool facingRight)
+    {
+        anim.SetFloat("Speed", isMoving ? 1 : 0);
+        transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
+    }
+
+    [ClientRpc]
+    private void UpdateJumpAnimationClientRpc(bool isHovering)
+    {
+        anim.SetInteger("Jump", isHovering ? 2 : 1);
+    }
+
+    [ClientRpc]
+    private void UpdateSuctionAnimationClientRpc(bool isSuction)
+    {
+        anim.SetInteger("suikomi", isSuction ? 1 : 0);
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            UpdateGroundStateServerRpc(true);
+        }
+    }
+
+    private void OnCollisionExit2D(Collision2D collision)
+    {
+        if (collision.gameObject.CompareTag("Ground"))
+        {
+            UpdateGroundStateServerRpc(false);
+        }
+    }
+
+    [ServerRpc]
+    private void UpdateGroundStateServerRpc(bool isOnGround)
+    {
+        isGround = isOnGround;
+        UpdateGroundStateClientRpc(isOnGround);
+    }
+
+    [ClientRpc]
+    private void UpdateGroundStateClientRpc(bool isOnGround)
+    {
+        isGround = isOnGround;
+        if (isOnGround)
+        {
+            anim.SetInteger("Jump", 0);
+            rb.gravityScale = normalGravityScale;
+        }
+    }
+
+    private void SuikomiStarBlock()
+    {
+        Vector2 boxCenter = (Vector2)transform.position + (isFacingRight ? Vector2.right : Vector2.left) * 1f;
+        Collider2D[] colliders = Physics2D.OverlapBoxAll(boxCenter, boxSize, 0f);
+
+        foreach (Collider2D collider in colliders)
+        {
+            string[] SuikomiTags = { "Enemy1", "Enemy2", "StarBlock" };
+
+            if (SuikomiTags.Contains(collider.tag))
+            {
+                Rigidbody2D targetRb = collider.GetComponent<Rigidbody2D>();
+                if (targetRb != null)
+                {
+                    Vector2 direction = (transform.position - collider.transform.position).normalized;
+                    targetRb.velocity = direction * suikomiForce;
+
+                    float distance = Vector2.Distance(transform.position, collider.transform.position);
+                    if (distance < closeDistance)
+                    {
+                        Destroy(collider.gameObject);
+                        isHoubaru = true;
+                        UpdateSuctionAnimationClientRpc(false);
+                    }
+                }
+            }
+        }
+    }
+
+    private void Shoot(bool isFacingRight)
+    {
+        GameObject newBullet = Instantiate(cannonBall, shootPoint.position, Quaternion.identity);
+        newBullet.GetComponent<Rigidbody2D>().AddForce((isFacingRight ? Vector3.right : Vector3.left) * power);
+    }
+}

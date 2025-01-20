@@ -3,10 +3,14 @@ using TMPro;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 public class NetworkManagerUI : MonoBehaviour
 {
-    public TMP_InputField hostIPInputField; // IPアドレスを入力するフィールド
+    public TMP_Dropdown hostIPDropDown; // IPアドレスを入力するフィールド
+    //public TMP_InputField hostIPInputField; // IPアドレスを入力するフィールド
+    
     public TextMeshProUGUI connectionStatusText; // 接続状況を表示するフィールド
 
     public UnityEngine.UI.Button hostButton; // Hostボタン
@@ -45,14 +49,14 @@ public class NetworkManagerUI : MonoBehaviour
 
     public void StartHost()
     {
-        if (hostIPInputField == null)
+        if (hostIPDropDown == null)
         {
             Debug.LogError("Host IP Input Field is not assigned!");
             UpdateConnectionStatus("Host IP Input Field is missing!");
             return;
         }
 
-        string hostIp = hostIPInputField.text; // InputFieldからIPを取得
+        string hostIp = hostIPDropDown.options[hostIPDropDown.value].text; // InputFieldからIPを取得
         if (string.IsNullOrEmpty(hostIp))
         {
             Debug.LogError("Host IP is empty!");
@@ -86,14 +90,14 @@ public class NetworkManagerUI : MonoBehaviour
 
     public void StartServer()
     {
-        if (hostIPInputField == null)
+        if (hostIPDropDown == null)
         {
             Debug.LogError("Host IP Input Field is not assigned!");
             UpdateConnectionStatus("Host IP Input Field is missing!");
             return;
         }
 
-        string hostIp = hostIPInputField.text; // InputFieldからIPを取得
+        string hostIp = hostIPDropDown.options[hostIPDropDown.value].text; // InputFieldからIPを取得
         if (string.IsNullOrEmpty(hostIp))
         {
             Debug.LogError("Host IP is empty!");
@@ -124,14 +128,14 @@ public class NetworkManagerUI : MonoBehaviour
 
     public IEnumerator DelayedStartClient()
     {
-        if (hostIPInputField == null)
+        if (hostIPDropDown == null)
         {
             Debug.LogError("Host IP Input Field is not assigned!");
             UpdateConnectionStatus("Host IP Input Field is missing!");
             yield break;
         }
 
-        string hostIp = hostIPInputField.text; // InputFieldからIPを取得
+        string hostIp = hostIPDropDown.options[hostIPDropDown.value].text; // InputFieldからIPを取得
         if (string.IsNullOrEmpty(hostIp))
         {
             Debug.LogError("Host IP is empty!");
