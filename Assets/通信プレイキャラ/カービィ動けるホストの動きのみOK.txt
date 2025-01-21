@@ -39,12 +39,6 @@ public class NetworkKirbyController : NetworkBehaviour
 
     private bool isTouchingDoor = false;
     private string Door_Name;
-    public NetworkVariable<Vector2> Position = new NetworkVariable<Vector2>();
-    public NetworkVariable<bool> IsFacingRight = new NetworkVariable<bool>();
-
-    public NetworkVariable<float> NetworkSpeed = new NetworkVariable<float>();
-    public NetworkVariable<int> NetworkJumpState = new NetworkVariable<int>();
-
 
     private void Start()
     {
@@ -53,39 +47,39 @@ public class NetworkKirbyController : NetworkBehaviour
 
         if (anim == null || rb == null)
         {
-            Debug.LogError("•K—v‚ÈƒRƒ“ƒ|[ƒlƒ“ƒg‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB");
+            Debug.LogError("å¿…è¦ãªã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã€‚");
         }
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
         {
-            Debug.LogError("AudioSourceƒRƒ“ƒ|[ƒlƒ“ƒg‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB");
+            Debug.LogError("AudioSourceã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã€‚");
         }
     }
-
 
     private void Update()
     {
-        if (!IsOwner)
-        {
-            // ƒNƒ‰ƒCƒAƒ“ƒg‘¤‚Íƒlƒbƒgƒ[ƒN•Ï”‚ğg—p‚µ‚ÄƒAƒjƒ[ƒVƒ‡ƒ“‚ğ”½‰f
-            UpdateAnimationAndFacing(NetworkSpeed.Value, NetworkJumpState.Value, IsFacingRight.Value);
-        } else
+        if (IsOwner)
         {
             HandleInput();
-            Position.Value = rb.position;
-            IsFacingRight.Value = isFacingRight;
-
-            // ƒT[ƒo[‚ÉƒAƒjƒ[ƒVƒ‡ƒ“ó‘Ô‚ğ‘—M
-            UpdateAnimationStateServerRpc(anim.GetFloat("Speed"), anim.GetInteger("Jump"));
         }
 
-        // ’n–Ê‚ÉÚ‚µ‚Ä‚¢‚È‚¢ê‡‚Íí‚ÉƒWƒƒƒ“ƒvó‘Ô‚É‚·‚é
-        if (!isGround && anim.GetInteger("Jump") != 2) // ƒzƒoƒŠƒ“ƒO’†‚Å‚È‚¢ê‡
+        // åœ°é¢ã«ã„ãªã„å ´åˆã€ã‚¸ãƒ£ãƒ³ãƒ—ã¾ãŸã¯ãƒ›ãƒãƒªãƒ³ã‚°ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã‚’ãƒˆãƒªã‚¬ãƒ¼
+        if (!isGround)
         {
-            anim.SetInteger("Jump", 1); // ƒWƒƒƒ“ƒv‚Ü‚½‚Í—‰ºó‘Ô‚Éİ’è
+            if (rb.gravityScale == hoverGravityScale)
+            {
+                // ãƒ›ãƒãƒªãƒ³ã‚°ä¸­ã®ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³
+                anim.SetInteger("Jump", 2); // 2: ãƒ›ãƒãƒªãƒ³ã‚°
+            } else
+            {
+                // ã‚¸ãƒ£ãƒ³ãƒ—ã¾ãŸã¯è½ä¸‹ä¸­ã®ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³
+                anim.SetInteger("Jump", 1); // 1: ã‚¸ãƒ£ãƒ³ãƒ—/è½ä¸‹
+            }
         }
     }
+
+
 
 
     private void HandleInput()
@@ -142,15 +136,15 @@ public class NetworkKirbyController : NetworkBehaviour
     {
         if (isHovering)
         {
-            rb.gravityScale = hoverGravityScale; // ƒzƒoƒŠƒ“ƒO’†‚Ìd—Í‚ğİ’è
-            anim.SetInteger("Jump", 2); // ƒzƒoƒŠƒ“ƒO‚ÌƒAƒjƒ[ƒVƒ‡ƒ“
+            rb.gravityScale = hoverGravityScale; // ãƒ›ãƒãƒªãƒ³ã‚°ä¸­ã®é‡åŠ›ã‚’è¨­å®š
+            anim.SetInteger("Jump", 2); // ãƒ›ãƒãƒªãƒ³ã‚°ã®ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³
         } else
         {
-            rb.gravityScale = normalGravityScale; // ’Êí‚Ìd—Í
-            anim.SetInteger("Jump", 1); // ƒWƒƒƒ“ƒv‚ÌƒAƒjƒ[ƒVƒ‡ƒ“
+            rb.gravityScale = normalGravityScale; // é€šå¸¸ã®é‡åŠ›
+            anim.SetInteger("Jump", 1); // ã‚¸ãƒ£ãƒ³ãƒ—ã®ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³
         }
 
-        // ƒWƒƒƒ“ƒv‚Ü‚½‚ÍƒzƒoƒŠƒ“ƒO‚Ì“®‚«‚ğ“K—p
+        // ã‚¸ãƒ£ãƒ³ãƒ—ã¾ãŸã¯ãƒ›ãƒãƒªãƒ³ã‚°ã®å‹•ãã‚’é©ç”¨
         rb.velocity = new Vector2(rb.velocity.x, jumpForce);
     }
 
@@ -181,27 +175,11 @@ public class NetworkKirbyController : NetworkBehaviour
         transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
     }
 
-    [ServerRpc(RequireOwnership = false)]
-    private void UpdateAnimationStateServerRpc(float speed, int jumpState)
-    {
-        NetworkSpeed.Value = speed;
-        NetworkJumpState.Value = jumpState;
-    }
-
-
     [ClientRpc]
     private void UpdateJumpAnimationClientRpc(bool isHovering)
     {
-        anim.SetInteger("Jump", isHovering ? 2 : 1); // 2: ƒzƒoƒŠƒ“ƒO, 1: ’ÊíƒWƒƒƒ“ƒv
+        anim.SetInteger("Jump", isHovering ? 2 : 1); // 2: ãƒ›ãƒãƒªãƒ³ã‚°, 1: é€šå¸¸ã‚¸ãƒ£ãƒ³ãƒ—
     }
-
-    private void UpdateAnimationAndFacing(float speed, int jumpState, bool facingRight)
-    {
-        anim.SetFloat("Speed", speed);
-        anim.SetInteger("Jump", jumpState);
-        transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
-    }
-
 
 
     [ClientRpc]
@@ -210,25 +188,25 @@ public class NetworkKirbyController : NetworkBehaviour
         anim.SetInteger("suikomi", isSuction ? 1 : 0);
     }
 
-
     private void OnCollisionEnter2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
-            isGround = true;
-            anim.SetInteger("Jump", 0); // ’nãƒAƒjƒ[ƒVƒ‡ƒ“‚ÉƒŠƒZƒbƒg
-            rb.gravityScale = normalGravityScale; // d—Í‚ğƒŠƒZƒbƒg
+            UpdateGroundStateServerRpc(true);
+            anim.SetInteger("Jump", 0); // åœ°ä¸Šã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã«ãƒªã‚»ãƒƒãƒˆ
+            rb.gravityScale = normalGravityScale; // é‡åŠ›ã‚’ãƒªã‚»ãƒƒãƒˆ
         }
     }
+
+
 
     private void OnCollisionExit2D(Collision2D collision)
     {
         if (collision.gameObject.CompareTag("Ground"))
         {
-            isGround = false;
+            UpdateGroundStateServerRpc(false);
         }
     }
-
 
     [ServerRpc]
     private void UpdateGroundStateServerRpc(bool isOnGround)
