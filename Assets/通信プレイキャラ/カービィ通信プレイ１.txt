@@ -47,13 +47,13 @@ public class NetworkKirbyController : NetworkBehaviour
 
         if (anim == null || rb == null)
         {
-            Debug.LogError("•K—v‚ÈƒRƒ“ƒ|[ƒlƒ“ƒg‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB");
+            Debug.LogError("å¿…è¦ãªã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã€‚");
         }
 
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
         {
-            Debug.LogError("AudioSourceƒRƒ“ƒ|[ƒlƒ“ƒg‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñB");
+            Debug.LogError("AudioSourceã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã€‚");
         }
     }
 
@@ -63,24 +63,7 @@ public class NetworkKirbyController : NetworkBehaviour
         {
             HandleInput();
         }
-
-        // ’n–Ê‚É‚¢‚È‚¢ê‡AƒWƒƒƒ“ƒv‚Ü‚½‚ÍƒzƒoƒŠƒ“ƒOƒAƒjƒ[ƒVƒ‡ƒ“‚ğƒgƒŠƒK[
-        if (!isGround)
-        {
-            if (rb.gravityScale == hoverGravityScale)
-            {
-                // ƒzƒoƒŠƒ“ƒO’†‚ÌƒAƒjƒ[ƒVƒ‡ƒ“
-                anim.SetInteger("Jump", 2); // 2: ƒzƒoƒŠƒ“ƒO
-            } else
-            {
-                // ƒWƒƒƒ“ƒv‚Ü‚½‚Í—‰º’†‚ÌƒAƒjƒ[ƒVƒ‡ƒ“
-                anim.SetInteger("Jump", 1); // 1: ƒWƒƒƒ“ƒv/—‰º
-            }
-        }
     }
-
-
-
 
     private void HandleInput()
     {
@@ -91,7 +74,8 @@ public class NetworkKirbyController : NetworkBehaviour
         {
             isFacingRight = true;
             xSpeed = realSpeed;
-        } else if (horizontalKey < 0)
+        }
+        else if (horizontalKey < 0)
         {
             isFacingRight = false;
             xSpeed = -realSpeed;
@@ -104,7 +88,8 @@ public class NetworkKirbyController : NetworkBehaviour
             if (isGround)
             {
                 RequestJumpServerRpc(false);
-            } else if (!isHoubaru)
+            }
+            else if (!isHoubaru)
             {
                 RequestJumpServerRpc(true);
             }
@@ -113,7 +98,8 @@ public class NetworkKirbyController : NetworkBehaviour
         if (Input.GetKey(KeyCode.S) && !isHoubaru)
         {
             RequestSuctionServerRpc(true);
-        } else if (Input.GetKeyUp(KeyCode.S))
+        }
+        else if (Input.GetKeyUp(KeyCode.S))
         {
             RequestSuctionServerRpc(false);
         }
@@ -136,18 +122,11 @@ public class NetworkKirbyController : NetworkBehaviour
     {
         if (isHovering)
         {
-            rb.gravityScale = hoverGravityScale; // ƒzƒoƒŠƒ“ƒO’†‚Ìd—Í‚ğİ’è
-            anim.SetInteger("Jump", 2); // ƒzƒoƒŠƒ“ƒO‚ÌƒAƒjƒ[ƒVƒ‡ƒ“
-        } else
-        {
-            rb.gravityScale = normalGravityScale; // ’Êí‚Ìd—Í
-            anim.SetInteger("Jump", 1); // ƒWƒƒƒ“ƒv‚ÌƒAƒjƒ[ƒVƒ‡ƒ“
+            rb.gravityScale = hoverGravityScale;
         }
-
-        // ƒWƒƒƒ“ƒv‚Ü‚½‚ÍƒzƒoƒŠƒ“ƒO‚Ì“®‚«‚ğ“K—p
         rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+        UpdateJumpAnimationClientRpc(isHovering);
     }
-
 
     [ServerRpc]
     private void RequestSuctionServerRpc(bool isSuction)
@@ -156,7 +135,8 @@ public class NetworkKirbyController : NetworkBehaviour
         {
             SuikomiStarBlock();
             UpdateSuctionAnimationClientRpc(true);
-        } else
+        }
+        else
         {
             UpdateSuctionAnimationClientRpc(false);
         }
@@ -178,9 +158,8 @@ public class NetworkKirbyController : NetworkBehaviour
     [ClientRpc]
     private void UpdateJumpAnimationClientRpc(bool isHovering)
     {
-        anim.SetInteger("Jump", isHovering ? 2 : 1); // 2: ƒzƒoƒŠƒ“ƒO, 1: ’ÊíƒWƒƒƒ“ƒv
+        anim.SetInteger("Jump", isHovering ? 2 : 1);
     }
-
 
     [ClientRpc]
     private void UpdateSuctionAnimationClientRpc(bool isSuction)
@@ -193,12 +172,8 @@ public class NetworkKirbyController : NetworkBehaviour
         if (collision.gameObject.CompareTag("Ground"))
         {
             UpdateGroundStateServerRpc(true);
-            anim.SetInteger("Jump", 0); // ’nãƒAƒjƒ[ƒVƒ‡ƒ“‚ÉƒŠƒZƒbƒg
-            rb.gravityScale = normalGravityScale; // d—Í‚ğƒŠƒZƒbƒg
         }
     }
-
-
 
     private void OnCollisionExit2D(Collision2D collision)
     {
