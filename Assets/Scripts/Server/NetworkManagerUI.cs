@@ -26,7 +26,7 @@ public class NetworkManagerUI : MonoBehaviour
             hostButton.onClick.AddListener(StartHost);
 
         if (clientButton != null)
-            clientButton.onClick.AddListener(() => StartCoroutine(DelayedStartClient()));
+            clientButton.onClick.AddListener(StartClient);
 
         if (serverButton != null)
             serverButton.onClick.AddListener(StartServer);
@@ -43,6 +43,12 @@ public class NetworkManagerUI : MonoBehaviour
 
     public void StartHost()
     {
+        if (NetworkManager.Singleton.IsServer || NetworkManager.Singleton.IsClient)
+        {
+            Debug.LogWarning("Host or Client is already running. Cannot start a new Host.");
+            return; // 既にホストやクライアントが起動している場合、処理を終了
+        }
+
         if (!ValidateNetworkSetup()) return;
 
         var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
@@ -51,18 +57,44 @@ public class NetworkManagerUI : MonoBehaviour
         if (NetworkManager.Singleton.StartHost())
         {
             UpdateConnectionStatus($"Host started at {GetSelectedIP()}:{port}");
+            Debug.Log("Host started successfully.");
         } else
         {
             UpdateConnectionStatus("Failed to start host.");
         }
     }
 
-    public void StartServer()
+    public void StartClient()
     {
         if (!ValidateNetworkSetup()) return;
 
         var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
         unityTransport.SetConnectionData(GetSelectedIP(), (ushort)port);
+
+        UpdateConnectionStatus($"Connecting to host at {GetSelectedIP()}:{port}...");
+
+        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+
+        if (!NetworkManager.Singleton.StartClient())
+        {
+            UpdateConnectionStatus("Failed to start client.");
+        }
+    }
+
+    private bool ConfigureTransport()
+    {
+        if (!ValidateNetworkSetup()) return false;
+
+        var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+        unityTransport.SetConnectionData(GetSelectedIP(), (ushort)port);
+        return true;
+    }
+
+
+    public void StartServer()
+    {
+        if (!ConfigureTransport()) return;
 
         if (NetworkManager.Singleton.StartServer())
         {
@@ -72,6 +104,22 @@ public class NetworkManagerUI : MonoBehaviour
             UpdateConnectionStatus("Failed to start server.");
         }
     }
+
+
+
+    private void OnClientConnected(ulong clientId)
+    {
+        UpdateConnectionStatus($"Connected to host at {GetSelectedIP()}:{port}");
+        NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+    }
+
+    private void OnClientDisconnected(ulong clientId)
+    {
+        UpdateConnectionStatus("Connection failed. Please check the host address and try again.");
+        NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+    }
+
+
 
     public IEnumerator DelayedStartClient()
     {
@@ -89,11 +137,6 @@ public class NetworkManagerUI : MonoBehaviour
         yield return new WaitForSeconds(1f);
     }
 
-    private void OnClientDisconnected(ulong clientId)
-    {
-        UpdateConnectionStatus("Connection failed. Please check the host address and try again.");
-        NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
-    }
 
     private bool ValidateNetworkSetup()
     {

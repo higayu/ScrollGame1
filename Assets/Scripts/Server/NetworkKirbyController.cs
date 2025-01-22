@@ -66,21 +66,23 @@ public class NetworkKirbyController : NetworkBehaviour
 
     private void Update()
     {
-        if (!IsOwner)
+        if (IsOwner)
         {
-            // クライアント側はネットワーク変数を使用してアニメーションを反映
-            UpdateAnimationAndFacing(NetworkSpeed.Value, NetworkJumpState.Value, IsFacingRight.Value);
-        } else
-        {
+            // オーナーは入力を処理し、位置をサーバーに送信
             HandleInput();
-            Position.Value = rb.position;
+            Position.Value = rb.position; // サーバー側で位置を同期
             IsFacingRight.Value = isFacingRight;
 
             // サーバーにアニメーション状態を送信
             UpdateAnimationStateServerRpc(anim.GetFloat("Speed"), anim.GetInteger("Jump"));
+        } else
+        {
+            // クライアントはネットワーク変数から位置と向きを反映
+            rb.position = Position.Value; // ネットワークで同期された位置を適用
+            transform.localScale = new Vector3(IsFacingRight.Value ? 1 : -1, 1, 1);
         }
 
-        // 地面に接していない場合は常にジャンプ状態にする
+        // 地面に接していない場合はジャンプまたは落下アニメーションを設定
         if (!isGround && anim.GetInteger("Jump") != 2) // ホバリング中でない場合
         {
             anim.SetInteger("Jump", 1); // ジャンプまたは落下状態に設定
@@ -177,9 +179,16 @@ public class NetworkKirbyController : NetworkBehaviour
     [ClientRpc]
     private void UpdateAnimationAndFacingClientRpc(bool isMoving, bool facingRight)
     {
-        anim.SetFloat("Speed", isMoving ? 1 : 0);
+        if (anim == null)
+        {
+            Debug.LogError("Animator is null. Please ensure the Animator component is attached.");
+            return;
+        }
+
+        anim.SetInteger("Speed", isMoving ? 1 : 0);
         transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
     }
+
 
     [ServerRpc(RequireOwnership = false)]
     private void UpdateAnimationStateServerRpc(float speed, int jumpState)
@@ -195,9 +204,9 @@ public class NetworkKirbyController : NetworkBehaviour
         anim.SetInteger("Jump", isHovering ? 2 : 1); // 2: ホバリング, 1: 通常ジャンプ
     }
 
-    private void UpdateAnimationAndFacing(float speed, int jumpState, bool facingRight)
+    private void UpdateAnimationAndFacing(int speed, int jumpState, bool facingRight)
     {
-        anim.SetFloat("Speed", speed);
+        anim.SetInteger("Speed", speed);
         anim.SetInteger("Jump", jumpState);
         transform.localScale = new Vector3(facingRight ? 1 : -1, 1, 1);
     }
