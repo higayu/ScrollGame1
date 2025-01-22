@@ -1,32 +1,33 @@
-using System.Collections;
+Ôªøusing System.Collections;
 using TMPro;
 using Unity.Netcode;
 using Unity.Netcode.Transports.UTP;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.UIElements;
 
 public class NetworkManagerUI : MonoBehaviour
 {
-    public TMP_Dropdown hostIPDropDown; // IPÉAÉhÉåÉXÇëIëÇ∑ÇÈÉhÉçÉbÉvÉ_ÉEÉì
-    public TextMeshProUGUI connectionStatusText; // ê⁄ë±èÛãµÇï\é¶Ç∑ÇÈÉtÉBÅ[ÉãÉh
+    public TMP_Dropdown hostIPDropDown;
 
-    public Button hostButton; // HostÉ{É^Éì
-    public Button clientButton; // ClientÉ{É^Éì
-    public Button serverButton; // ServerÉ{É^Éì
+    public TextMeshProUGUI connectionStatusText;
 
-    public int port = 7777; // égópÇ∑ÇÈÉ|Å[Égî‘çÜ
+    public UnityEngine.UI.Button hostButton;
+    public UnityEngine.UI.Button clientButton;
+    public UnityEngine.UI.Button serverButton;
+
+    private string connectionStatus = "";
+    public int port = 7777;
 
     private void Start()
     {
-        // èâä˙ÉÅÉbÉZÅ[ÉWÇê›íË
         UpdateConnectionStatus("Waiting for input...");
 
-        // É{É^ÉìÉCÉxÉìÉgÇÃìoò^
         if (hostButton != null)
             hostButton.onClick.AddListener(StartHost);
 
         if (clientButton != null)
-            clientButton.onClick.AddListener(StartClient);
+            clientButton.onClick.AddListener(() => StartCoroutine(DelayedStartClient()));
 
         if (serverButton != null)
             serverButton.onClick.AddListener(StartServer);
@@ -34,139 +35,175 @@ public class NetworkManagerUI : MonoBehaviour
 
     private void UpdateConnectionStatus(string status)
     {
+        connectionStatus = status;
+        Debug.Log($"Connection Status Updated: {status}");
         if (connectionStatusText != null)
         {
-            connectionStatusText.text = status;
+            connectionStatusText.text = connectionStatus;
         }
-       // Debug.Log(status);
     }
 
     public void StartHost()
     {
-        if (NetworkManager.Singleton.IsServer || NetworkManager.Singleton.IsClient)
+        try
         {
-            Debug.LogWarning("Host or Client is already running. Cannot start a new Host.");
-            return; // ä˘Ç…ÉzÉXÉgÇ‚ÉNÉâÉCÉAÉìÉgÇ™ãNìÆÇµÇƒÇ¢ÇÈèÍçáÅAèàóùÇèIóπ
-        }
+            if (hostIPDropDown == null)
+            {
+                Debug.LogError("Host IP Input Field is not assigned!");
+                UpdateConnectionStatus("Host IP Input Field is missing!");
+                return;
+            }
 
-        if (!ValidateNetworkSetup()) return;
+            string hostIp = hostIPDropDown.options[hostIPDropDown.value].text;
+            if (string.IsNullOrEmpty(hostIp))
+            {
+                Debug.LogError("Host IP is empty!");
+                UpdateConnectionStatus("Please enter a valid Host IP.");
+                return;
+            }
 
-        var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        unityTransport.SetConnectionData(GetSelectedIP(), (ushort)port);
+            var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+            if (unityTransport == null)
+            {
+                Debug.LogError("UnityTransport component is missing from NetworkManager!");
+                UpdateConnectionStatus("UnityTransport component is missing!");
+                return;
+            }
 
-        if (NetworkManager.Singleton.StartHost())
+            unityTransport.SetConnectionData(hostIp, (ushort)port);
+
+            if (NetworkManager.Singleton.StartHost())
+            {
+                UpdateConnectionStatus($"Host started at {hostIp}:{port}");
+                Debug.Log($"Host successfully started at {hostIp}:{port}");
+            } else
+            {
+                UpdateConnectionStatus("Failed to start host.");
+                Debug.LogError("Failed to start host.");
+            }
+        } catch (System.Exception ex)
         {
-            UpdateConnectionStatus($"Host started at {GetSelectedIP()}:{port}");
-            Debug.Log("Host started successfully.");
-        } else
-        {
-            UpdateConnectionStatus("Failed to start host.");
+            Debug.LogError($"Exception in StartHost: {ex.Message}");
+            UpdateConnectionStatus("Error occurred while starting the host.");
         }
     }
-
-    public void StartClient()
-    {
-        if (!ValidateNetworkSetup()) return;
-
-        var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        unityTransport.SetConnectionData(GetSelectedIP(), (ushort)port);
-
-        UpdateConnectionStatus($"Connecting to host at {GetSelectedIP()}:{port}...");
-
-        NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
-
-        if (!NetworkManager.Singleton.StartClient())
-        {
-            UpdateConnectionStatus("Failed to start client.");
-        }
-    }
-
-    private bool ConfigureTransport()
-    {
-        if (!ValidateNetworkSetup()) return false;
-
-        var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        unityTransport.SetConnectionData(GetSelectedIP(), (ushort)port);
-        return true;
-    }
-
 
     public void StartServer()
     {
-        if (!ConfigureTransport()) return;
+        try
+        {
+            if (hostIPDropDown == null)
+            {
+                Debug.LogError("Host IP Input Field is not assigned!");
+                UpdateConnectionStatus("Host IP Input Field is missing!");
+                return;
+            }
 
-        if (NetworkManager.Singleton.StartServer())
+            string hostIp = hostIPDropDown.options[hostIPDropDown.value].text;
+            if (string.IsNullOrEmpty(hostIp))
+            {
+                Debug.LogError("Host IP is empty!");
+                UpdateConnectionStatus("Please enter a valid Host IP.");
+                return;
+            }
+
+            var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+            if (unityTransport == null)
+            {
+                Debug.LogError("UnityTransport component is missing from NetworkManager!");
+                UpdateConnectionStatus("UnityTransport component is missing!");
+                return;
+            }
+
+            unityTransport.SetConnectionData(hostIp, (ushort)port);
+
+            if (NetworkManager.Singleton.StartServer())
+            {
+                UpdateConnectionStatus($"Server started at {hostIp}:{port}");
+                Debug.Log($"Server successfully started at {hostIp}:{port}");
+            } else
+            {
+                UpdateConnectionStatus("Failed to start server.");
+                Debug.LogError("Failed to start server.");
+            }
+        } catch (System.Exception ex)
         {
-            UpdateConnectionStatus($"Server started at {GetSelectedIP()}:{port}");
-        } else
-        {
-            UpdateConnectionStatus("Failed to start server.");
+            Debug.LogError($"Exception in StartServer: {ex.Message}");
+            UpdateConnectionStatus("Error occurred while starting the server.");
         }
     }
 
-
-
-    private void OnClientConnected(ulong clientId)
+    public IEnumerator DelayedStartClient()
     {
-        UpdateConnectionStatus($"Connected to host at {GetSelectedIP()}:{port}");
-        NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+        string hostIp = ""; // try „ÅÆÂ§ñ„ÅßÂ§âÊï∞„ÇíÂÆ£Ë®Ä
+        try
+        {
+            if (hostIPDropDown == null)
+            {
+                Debug.LogError("Host IP Input Field is not assigned!");
+                UpdateConnectionStatus("Host IP Input Field is missing!");
+                yield break;
+            }
+
+            // „Éâ„É≠„ÉÉ„Éó„ÉÄ„Ç¶„É≥„Åã„ÇâÈÅ∏Êäû„Åï„Çå„Åü„Éõ„Çπ„ÉàIP„ÇíÂèñÂæó
+            hostIp = hostIPDropDown.options[hostIPDropDown.value].text;
+            if (string.IsNullOrEmpty(hostIp))
+            {
+                Debug.LogError("Host IP is empty!");
+                UpdateConnectionStatus("Please enter a valid Host IP.");
+                yield break;
+            }
+
+            // UnityTransport„Ç≥„É≥„Éù„Éº„Éç„É≥„Éà„ÇíÂèñÂæó
+            var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
+            if (unityTransport == null)
+            {
+                Debug.LogError("UnityTransport component is missing from NetworkManager!");
+                UpdateConnectionStatus("UnityTransport component is missing!");
+                yield break;
+            }
+
+            // Êé•Á∂ö„Éá„Éº„Çø„ÇíË®≠ÂÆö
+            unityTransport.SetConnectionData(hostIp, (ushort)port);
+
+            UpdateConnectionStatus($"Connecting to Host at {hostIp}:{port}...");
+            Debug.Log($"Attempting to connect to Host at {hostIp}:{port}");
+
+            // „ÇØ„É©„Ç§„Ç¢„É≥„ÉàÂàáÊñ≠ÊôÇ„ÅÆ„Ç≥„Éº„É´„Éê„ÉÉ„ÇØ„ÇíÁôªÈå≤
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+
+            // „ÇØ„É©„Ç§„Ç¢„É≥„ÉàÊé•Á∂ö„ÇíÈñãÂßã
+            NetworkManager.Singleton.StartClient();
+
+
+
+            // Êé•Á∂öÁä∂ÊÖã„ÇíÁ¢∫Ë™ç
+            if (!NetworkManager.Singleton.IsConnectedClient)
+            {
+                Debug.LogWarning("Connection attempt timed out or failed.");
+                UpdateConnectionStatus($"Connection to {hostIp}:{port} timed out. Check the host address.");
+            } else
+            {
+                Debug.Log("Client successfully connected to the server.");
+                UpdateConnectionStatus("Client connected successfully!");
+            }
+        } catch (System.Exception ex)
+        {
+            // „Ç®„É©„Éº„É°„ÉÉ„Çª„Éº„Ç∏„ÅÆÂá∫Âäõ
+            Debug.LogError($"Exception in DelayedStartClient: {ex.Message}");
+            UpdateConnectionStatus($"Error occurred while connecting to the host: {hostIp}");
+        } finally
+        {
+            // „Ç≥„Éº„É´„Éê„ÉÉ„ÇØ„ÇíËß£Èô§„Åó„Å¶„É°„É¢„É™„É™„Éº„ÇØ„ÇíÈò≤Ê≠¢
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+        }
     }
+
 
     private void OnClientDisconnected(ulong clientId)
     {
         UpdateConnectionStatus("Connection failed. Please check the host address and try again.");
+        Debug.LogError("Client disconnected. Connection failed.");
         NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
-    }
-
-
-
-    public IEnumerator DelayedStartClient()
-    {
-        if (!ValidateNetworkSetup()) yield break;
-
-        var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        unityTransport.SetConnectionData(GetSelectedIP(), (ushort)port);
-
-        UpdateConnectionStatus($"Connecting to host at {GetSelectedIP()}:{port}...");
-
-        NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
-
-        NetworkManager.Singleton.StartClient();
-
-        yield return new WaitForSeconds(1f);
-    }
-
-
-    private bool ValidateNetworkSetup()
-    {
-        if (hostIPDropDown == null || hostIPDropDown.options.Count == 0)
-        {
-            Debug.LogError("Host IP Dropdown is not assigned or empty!");
-            UpdateConnectionStatus("Host IP Dropdown is not assigned or empty!");
-            return false;
-        }
-
-        if (NetworkManager.Singleton == null)
-        {
-            Debug.LogError("NetworkManager is missing in the scene!");
-            UpdateConnectionStatus("NetworkManager is missing in the scene!");
-            return false;
-        }
-
-        var unityTransport = NetworkManager.Singleton.GetComponent<UnityTransport>();
-        if (unityTransport == null)
-        {
-            Debug.LogError("UnityTransport component is missing from NetworkManager!");
-            UpdateConnectionStatus("UnityTransport component is missing!");
-            return false;
-        }
-
-        return true;
-    }
-
-    private string GetSelectedIP()
-    {
-        return hostIPDropDown.options[hostIPDropDown.value].text;
     }
 }

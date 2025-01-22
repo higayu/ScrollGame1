@@ -67,9 +67,10 @@ public class NetworkedCharacter : NetworkBehaviour
 
     void Update()
     {
+        float horizonVal = HandleMovement(); // 座標変更処理を追加
+
         if (IsOwner)
         {
-            HandleMovement(); // 座標変更処理を追加
             MyCustomModel data = networkData.Value;
             data.position = transform.position;
             data.isOnGround = isGround; // 地面の状態を反映
@@ -77,16 +78,16 @@ public class NetworkedCharacter : NetworkBehaviour
             networkData.Value = data;
 
             // アニメーションの更新をホスト側でも適用
-            UpdateAnimation(data.animationValue);
+            UpdateAnimation(data.animationValue,horizonVal);
         } else
         {
             transform.position = networkData.Value.position; // 座標反映処理
-            UpdateAnimation(networkData.Value.animationValue);
+            UpdateAnimation(networkData.Value.animationValue,horizonVal);
         }
     }
 
 
-    private void HandleMovement()
+    private float HandleMovement()
     {
         // 入力を取得
         float horizontalKey = Input.GetAxis("Horizontal");
@@ -120,6 +121,7 @@ public class NetworkedCharacter : NetworkBehaviour
 
         // 横移動の速度を設定
         rb.velocity = new Vector2(xSpeed, rb.velocity.y);
+        return horizontalKey;
     }
 
 
@@ -191,7 +193,7 @@ public class NetworkedCharacter : NetworkBehaviour
     }
 
 
-    private void UpdateAnimation(AnimationValue animationValue)
+    private void UpdateAnimation(AnimationValue animationValue, float horizontalKey)
     {
         anim.SetInteger("Speed", animationValue.Speed);
         anim.SetInteger("Jump", animationValue.Jump);
@@ -200,13 +202,21 @@ public class NetworkedCharacter : NetworkBehaviour
         // デバッグ出力
         if (anim.GetInteger("Jump") == 1)
         {
-             Debug.Log($"[ジャンプ中] Speed: {animationValue.Speed}, Jump: {animationValue.Jump}, Suikomi: {animationValue.Suikomi}");
+            // Debug.Log($"[ジャンプ中] Speed: {animationValue.Speed}, Jump: {animationValue.Jump}, Suikomi: {animationValue.Suikomi}");
         } else if (anim.GetInteger("Jump") == 2)
         {
-            Debug.Log($"[ホバリングモード中] Speed: {animationValue.Speed}, Jump: {animationValue.Jump}, Suikomi: {animationValue.Suikomi}");
+           // Debug.Log($"[ホバリングモード中] Speed: {animationValue.Speed}, Jump: {animationValue.Jump}, Suikomi: {animationValue.Suikomi}");
         } else
         {
-            Debug.Log($"[歩行中] Speed: {animationValue.Speed}, Jump: {animationValue.Jump}, Suikomi: {animationValue.Suikomi}");
+           // Debug.Log($"[歩行中] Speed: {animationValue.Speed}, Jump: {animationValue.Jump}, Suikomi: {animationValue.Suikomi}");
+        }
+
+        if (horizontalKey > 0)
+        {
+            transform.localScale = new Vector3(1, 1, 1); // 右向き
+        } else if (horizontalKey < 0)
+        {
+            transform.localScale = new Vector3(-1, 1, 1); // 左向き
         }
     }
 
